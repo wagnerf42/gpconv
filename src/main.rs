@@ -7,8 +7,8 @@ fn main() {
     #[cfg(feature = "osm")]
     {
         let osm_file = std::env::args().nth(2);
-        let mut interests = if let Some(osm) = osm_file {
-            interests = parse_osm_data(osm);
+        interests = if let Some(osm) = osm_file {
+            gpconv::parse_osm_data(osm)
         } else {
             Vec::new()
         };

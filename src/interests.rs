@@ -17,6 +17,12 @@ pub enum Interest {
     // Pharmacy,
 }
 
+impl Interest {
+    pub fn new(key: &str, value: &str) -> Option<Self> {
+        INTERESTS.get(&(key, value)).cloned()
+    }
+}
+
 impl Into<u8> for Interest {
     fn into(self) -> u8 {
         match self {

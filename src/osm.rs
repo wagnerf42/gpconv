@@ -1,10 +1,8 @@
-use super::Interest;
+use super::InterestPoint;
 use super::Point;
-use itertools::Itertools;
-use lazy_static::lazy_static;
+use crate::interests::Interest;
+use osmio::prelude::*;
 use osmio::OSMObjBase;
-use osmio::{prelude::*, ObjId};
-use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 pub fn parse_osm_data<P: AsRef<Path>>(path: P) -> Vec<InterestPoint> {

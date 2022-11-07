@@ -16,7 +16,7 @@ mod svg;
 #[cfg(feature = "osm")]
 mod osm;
 #[cfg(feature = "osm")]
-use osm::{parse_osm_data, InterestPoint};
+pub use osm::parse_osm_data;
 
 const LOWER_SHARP_TURN: f64 = 80.0 * std::f64::consts::PI / 180.0;
 const UPPER_SHARP_TURN: f64 = std::f64::consts::PI * 2.0 - LOWER_SHARP_TURN;
