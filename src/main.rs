@@ -1,3 +1,5 @@
+use std::io::BufWriter;
+
 use gpconv::convert_gpx_files;
 
 fn main() {
@@ -15,5 +17,6 @@ fn main() {
         interests = None;
     }
 
-    convert_gpx_files(&input_file, interests);
+    let svg_writer = BufWriter::new(std::fs::File::create("output.svg").unwrap());
+    convert_gpx_files(&input_file, svg_writer, interests);
 }

@@ -513,18 +513,29 @@ fn detect_sharp_turns(path: &[Point], waypoints: &mut HashSet<Point>) {
 }
 
 #[wasm_bindgen]
-pub fn convert_gpx_strings(input_str: &str) -> Vec<u8> {
-    let mut output: Vec<u8> = Vec::new();
-    convert_gpx(input_str.as_bytes(), &mut output, None);
-    output
+pub struct GpcSvg {
+    gpc: Vec<u8>,
+    svg: Vec<u8>,
 }
 
-pub fn convert_gpx_files(input_file: &str, interests: Option<Vec<InterestPoint>>) {
+#[wasm_bindgen]
+pub fn convert_gpx_strings(input_str: &str) -> GpcSvg {
+    let mut output: Vec<u8> = Vec::new();
+    let mut svg: Vec<u8> = Vec::new();
+    convert_gpx(input_str.as_bytes(), &mut output, &mut svg, None);
+    GpcSvg { gpc: output, svg }
+}
+
+pub fn convert_gpx_files<W: Write>(
+    input_file: &str,
+    svg_writer: W,
+    interests: Option<Vec<InterestPoint>>,
+) {
     let file = File::open(input_file).unwrap();
     let reader = BufReader::new(file);
     let output_path = Path::new(&input_file).with_extension("gpc");
     let writer = BufWriter::new(File::create(output_path).unwrap());
-    convert_gpx(reader, writer, interests);
+    convert_gpx(reader, writer, svg_writer, interests);
 }
 
 fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
@@ -544,9 +555,10 @@ fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
     (xmin, ymin, xmax, ymax)
 }
 
-fn convert_gpx<R: Read, W: Write>(
+fn convert_gpx<R: Read, W: Write, SW: Write>(
     input_reader: R,
     output_writer: W,
+    mut svg_writer: SW,
     interests: Option<Vec<InterestPoint>>,
 ) {
     // load all points composing the trace and mark commented points
@@ -557,6 +569,10 @@ fn convert_gpx<R: Read, W: Write>(
     let mut interests = interests
         .or_else(|| requests::download_openstreetmap_interests(&p).ok())
         .unwrap_or_default();
+    eprintln!(
+        "in bounding box there are {} interest points",
+        interests.len()
+    );
 
     // detect sharp turns before path simplification to keep them
     detect_sharp_turns(&p, &mut waypoints);
@@ -585,14 +601,14 @@ fn convert_gpx<R: Read, W: Write>(
     // add interest points from open street map if we have any
     let buckets = position_interests_along_path(&mut interests, &rp, 0.001, 5, 3);
 
-    // save_svg(
-    //     "test.svg",
-    //     &p,
-    //     &rp,
-    //     buckets.iter().flat_map(|b| &b.points),
-    //     &waypoints,
-    // )
-    // .unwrap();
+    svg::save_svg(
+        &mut svg_writer,
+        &p,
+        &rp,
+        buckets.iter().flat_map(|b| &b.points),
+        &waypoints,
+    )
+    .unwrap();
 
     save_gpc(output_writer, &rp, &waypoints, &buckets).unwrap();
 }

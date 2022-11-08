@@ -28,7 +28,7 @@ pub fn download_openstreetmap_interests_xml(
         {}
         );
         out body;",
-        xmin, ymin, xmax, ymax, interests_nodes
+        ymin, xmin, ymax, xmax, interests_nodes
     );
     let client = reqwest_wasm::blocking::Client::builder()
         .user_agent("osm-geo-mapper")

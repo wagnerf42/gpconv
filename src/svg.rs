@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    io::{BufWriter, Write},
-    path::Path,
-};
+use std::{collections::HashSet, io::Write};
 
 use crate::{bounding_box, interests::InterestPoint, Point};
 
@@ -20,15 +16,14 @@ fn save_path<W: Write>(writer: &mut W, p: &[Point], stroke: &str) -> std::io::Re
 
 // save svg file from given path and interest points.
 // useful for debugging path simplification and previewing traces.
-pub fn save_svg<'a, P: AsRef<Path>, I: IntoIterator<Item = &'a InterestPoint>>(
-    filename: P,
+pub fn save_svg<'a, W: Write, I: IntoIterator<Item = &'a InterestPoint>>(
+    mut writer: W,
     p: &[Point],
     rp: &[Point],
     interest_points: I,
     waypoints: &HashSet<Point>,
 ) -> std::io::Result<()> {
-    let mut writer = BufWriter::new(std::fs::File::create(filename)?);
-    let (xmin, xmax, ymin, ymax) = bounding_box(p);
+    let (xmin, ymin, xmax, ymax) = bounding_box(p);
 
     writeln!(
         &mut writer,
@@ -47,6 +42,11 @@ pub fn save_svg<'a, P: AsRef<Path>, I: IntoIterator<Item = &'a InterestPoint>>(
         ymax - ymin
     )?;
 
+    writeln!(
+        &mut writer,
+        "<g transform='translate(0, {}) scale(1,-1)'>",
+        ymin + ymax
+    )?;
     save_path(&mut writer, &p, "red")?;
     save_path(&mut writer, &rp, "black")?;
 
@@ -68,6 +68,7 @@ pub fn save_svg<'a, P: AsRef<Path>, I: IntoIterator<Item = &'a InterestPoint>>(
         )
     })?;
 
+    writeln!(&mut writer, "</g>")?;
     writeln!(&mut writer, "</svg>")?;
     Ok(())
 }
