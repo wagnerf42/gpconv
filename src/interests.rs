@@ -47,7 +47,7 @@ pub struct InterestPoint {
 }
 
 lazy_static! {
-    static ref INTERESTS: HashMap<(&'static str, &'static str), Interest> = {
+    pub static ref INTERESTS: HashMap<(&'static str, &'static str), Interest> = {
         [
             (("shop", "bakery"), Interest::Bakery),
             (("amenity", "drinking_water"), Interest::DrinkingWater),

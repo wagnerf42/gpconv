@@ -2,21 +2,18 @@ use gpconv::convert_gpx_files;
 
 fn main() {
     let input_file = std::env::args().nth(1).unwrap_or("m.gpx".to_string());
-    let mut interests;
+    let interests;
 
     #[cfg(feature = "osm")]
     {
-        let osm_file = std::env::args().nth(2);
-        interests = if let Some(osm) = osm_file {
-            gpconv::parse_osm_data(osm)
-        } else {
-            Vec::new()
-        };
+        interests = std::env::args()
+            .nth(2)
+            .map(|osm_file| gpconv::parse_osm_data(osm));
     }
     #[cfg(not(feature = "osm"))]
     {
-        interests = Vec::new()
+        interests = None;
     }
 
-    convert_gpx_files(&input_file, &mut interests);
+    convert_gpx_files(&input_file, interests);
 }

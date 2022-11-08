@@ -11,6 +11,8 @@ use gpx::Gpx;
 mod interests;
 use interests::InterestPoint;
 
+mod requests;
+
 mod svg;
 
 #[cfg(feature = "osm")]
@@ -512,13 +514,12 @@ fn detect_sharp_turns(path: &[Point], waypoints: &mut HashSet<Point>) {
 
 #[wasm_bindgen]
 pub fn convert_gpx_strings(input_str: &str) -> Vec<u8> {
-    let mut interests = Vec::new();
     let mut output: Vec<u8> = Vec::new();
-    convert_gpx(input_str.as_bytes(), &mut output, &mut interests);
+    convert_gpx(input_str.as_bytes(), &mut output, None);
     output
 }
 
-pub fn convert_gpx_files(input_file: &str, interests: &mut [InterestPoint]) {
+pub fn convert_gpx_files(input_file: &str, interests: Option<Vec<InterestPoint>>) {
     let file = File::open(input_file).unwrap();
     let reader = BufReader::new(file);
     let output_path = Path::new(&input_file).with_extension("gpc");
@@ -526,14 +527,36 @@ pub fn convert_gpx_files(input_file: &str, interests: &mut [InterestPoint]) {
     convert_gpx(reader, writer, interests);
 }
 
+fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
+    let (xmin, xmax) = points
+        .iter()
+        .map(|p| p.x)
+        .minmax_by(|a, b| a.partial_cmp(b).unwrap())
+        .into_option()
+        .unwrap();
+
+    let (ymin, ymax) = points
+        .iter()
+        .map(|p| p.y)
+        .minmax_by(|a, b| a.partial_cmp(b).unwrap())
+        .into_option()
+        .unwrap();
+    (xmin, ymin, xmax, ymax)
+}
+
 fn convert_gpx<R: Read, W: Write>(
     input_reader: R,
     output_writer: W,
-    interests: &mut [InterestPoint],
+    interests: Option<Vec<InterestPoint>>,
 ) {
     // load all points composing the trace and mark commented points
     // as special waypoints.
     let (mut waypoints, p) = points(input_reader);
+
+    // if we don't have local interest points we can try a download from openstreetmap
+    let mut interests = interests
+        .or_else(|| requests::download_openstreetmap_interests(&p).ok())
+        .unwrap_or_default();
 
     // detect sharp turns before path simplification to keep them
     detect_sharp_turns(&p, &mut waypoints);
@@ -560,7 +583,7 @@ fn convert_gpx<R: Read, W: Write>(
     println!("we now have {} points", rp.len());
 
     // add interest points from open street map if we have any
-    let buckets = position_interests_along_path(interests, &rp, 0.001, 5, 3);
+    let buckets = position_interests_along_path(&mut interests, &rp, 0.001, 5, 3);
 
     // save_svg(
     //     "test.svg",

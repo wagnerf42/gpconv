@@ -1,11 +1,10 @@
-use itertools::Itertools;
 use std::{
     collections::HashSet,
     io::{BufWriter, Write},
     path::Path,
 };
 
-use crate::{interests::InterestPoint, Point};
+use crate::{bounding_box, interests::InterestPoint, Point};
 
 fn save_path<W: Write>(writer: &mut W, p: &[Point], stroke: &str) -> std::io::Result<()> {
     write!(
@@ -29,19 +28,7 @@ pub fn save_svg<'a, P: AsRef<Path>, I: IntoIterator<Item = &'a InterestPoint>>(
     waypoints: &HashSet<Point>,
 ) -> std::io::Result<()> {
     let mut writer = BufWriter::new(std::fs::File::create(filename)?);
-    let (xmin, xmax) = p
-        .iter()
-        .map(|p| p.x)
-        .minmax_by(|a, b| a.partial_cmp(b).unwrap())
-        .into_option()
-        .unwrap();
-
-    let (ymin, ymax) = p
-        .iter()
-        .map(|p| p.y)
-        .minmax_by(|a, b| a.partial_cmp(b).unwrap())
-        .into_option()
-        .unwrap();
+    let (xmin, xmax, ymin, ymax) = bounding_box(p);
 
     writeln!(
         &mut writer,

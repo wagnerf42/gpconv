@@ -11,8 +11,8 @@ osm = ["dep:osmio"]
 lto = true
 opt-level='z'
 
-[lib]
-crate-type = ["cdylib"]
+#[lib]
+#crate-type = ["cdylib"]
 
 [dependencies]
 gpx="*"
@@ -20,3 +20,5 @@ itertools="*"
 lazy_static="*"
 osmio={version="*", optional=true}
 wasm-bindgen="*"
+xml-rs="*"
+reqwest-wasm={version="*", features=["blocking"]}
