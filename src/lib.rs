@@ -519,14 +519,27 @@ pub struct GpcSvg {
 }
 
 #[wasm_bindgen]
-pub fn convert_gpx_strings(input_str: &str) -> GpcSvg {
+impl GpcSvg {
+    #[wasm_bindgen(getter)]
+    pub fn get_gpc(&self) -> Vec<u8> {
+        self.gpc.clone() // TODO: remove clone
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn get_svg(&self) -> Vec<u8> {
+        self.svg.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub async fn convert_gpx_strings(input_str: &str) -> GpcSvg {
     let mut output: Vec<u8> = Vec::new();
     let mut svg: Vec<u8> = Vec::new();
-    convert_gpx(input_str.as_bytes(), &mut output, &mut svg, None);
+    convert_gpx(input_str.as_bytes(), &mut output, &mut svg, None).await;
     GpcSvg { gpc: output, svg }
 }
 
-pub fn convert_gpx_files<W: Write>(
+pub async fn convert_gpx_files<W: Write>(
     input_file: &str,
     svg_writer: W,
     interests: Option<Vec<InterestPoint>>,
@@ -535,7 +548,7 @@ pub fn convert_gpx_files<W: Write>(
     let reader = BufReader::new(file);
     let output_path = Path::new(&input_file).with_extension("gpc");
     let writer = BufWriter::new(File::create(output_path).unwrap());
-    convert_gpx(reader, writer, svg_writer, interests);
+    convert_gpx(reader, writer, svg_writer, interests).await;
 }
 
 fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
@@ -555,7 +568,7 @@ fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
     (xmin, ymin, xmax, ymax)
 }
 
-fn convert_gpx<R: Read, W: Write, SW: Write>(
+async fn convert_gpx<R: Read, W: Write, SW: Write>(
     input_reader: R,
     output_writer: W,
     mut svg_writer: SW,
@@ -566,13 +579,14 @@ fn convert_gpx<R: Read, W: Write, SW: Write>(
     let (mut waypoints, p) = points(input_reader);
 
     // if we don't have local interest points we can try a download from openstreetmap
-    let mut interests = interests
-        .or_else(|| requests::download_openstreetmap_interests(&p).ok())
-        .unwrap_or_default();
-    eprintln!(
-        "in bounding box there are {} interest points",
-        interests.len()
-    );
+    let mut interests = if let Some(i) = interests {
+        i
+    } else {
+        requests::download_openstreetmap_interests(&p)
+            .await
+            .ok()
+            .unwrap_or_default()
+    };
 
     // detect sharp turns before path simplification to keep them
     detect_sharp_turns(&p, &mut waypoints);

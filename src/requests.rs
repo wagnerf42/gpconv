@@ -5,14 +5,14 @@ use crate::{
 };
 use xml::reader::{EventReader, XmlEvent};
 
-pub fn download_openstreetmap_interests(
+pub async fn download_openstreetmap_interests(
     points: &[Point],
 ) -> Result<Vec<InterestPoint>, Box<dyn std::error::Error>> {
-    let xml = download_openstreetmap_interests_xml(points)?;
+    let xml = download_openstreetmap_interests_xml(points).await?;
     Ok(parse_osm_xml(&xml))
 }
 
-pub fn download_openstreetmap_interests_xml(
+pub async fn download_openstreetmap_interests_xml(
     points: &[Point],
 ) -> Result<String, Box<dyn std::error::Error>> {
     println!("downloading interests from openstreetmap");
@@ -30,11 +30,11 @@ pub fn download_openstreetmap_interests_xml(
         out body;",
         ymin, xmin, ymax, xmax, interests_nodes
     );
-    let client = reqwest_wasm::blocking::Client::builder()
-        .user_agent("osm-geo-mapper")
+    let client = reqwest::Client::builder()
+        //.user_agent("osm-geo-mapper")
         .build()?;
-    let response = client.get(&query).send()?;
-    let result = response.text()?;
+    let response = client.get(&query).send().await?;
+    let result = response.text().await?;
     Ok(result)
 }
 
