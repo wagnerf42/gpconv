@@ -519,16 +519,13 @@ pub struct GpcSvg {
 }
 
 #[wasm_bindgen]
-impl GpcSvg {
-    #[wasm_bindgen(getter)]
-    pub fn get_gpc(&self) -> Vec<u8> {
-        self.gpc.clone() // TODO: remove clone
-    }
+pub fn get_gpc(gpcsvg: &GpcSvg) -> Vec<u8> {
+    gpcsvg.gpc.clone() // TODO: remove clone
+}
 
-    #[wasm_bindgen(getter)]
-    pub fn get_svg(&self) -> Vec<u8> {
-        self.svg.clone()
-    }
+#[wasm_bindgen]
+pub fn get_svg(gpcsvg: &GpcSvg) -> Vec<u8> {
+    gpcsvg.svg.clone()
 }
 
 #[wasm_bindgen]
