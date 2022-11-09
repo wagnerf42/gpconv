@@ -1,6 +1,6 @@
+use super::interests::INTERESTS;
 use super::InterestPoint;
 use super::Point;
-use crate::interests::Interest;
 use osmio::prelude::*;
 use osmio::OSMObjBase;
 use std::path::Path;
@@ -15,17 +15,16 @@ pub fn parse_osm_data<P: AsRef<Path>>(path: P) -> Vec<InterestPoint> {
                     osmio::obj_types::ArcOSMObj::Node(n) => {
                         n.lat_lon_f64().map(|(lat, lon)| {
                             for p in n.tags().filter_map(move |(k, v)| {
-                                Interest::new(k, v).map(|i| InterestPoint {
+                                INTERESTS.get(&(k, v)).map(|i| InterestPoint {
                                     point: Point { x: lon, y: lat },
-                                    interest: i,
+                                    interest: *i,
                                 })
                             }) {
                                 interests.push(p);
                             }
                         });
                     }
-                    osmio::obj_types::ArcOSMObj::Way(w) => {}
-                    osmio::obj_types::ArcOSMObj::Relation(_) => {}
+                    _ => {}
                 }
             }
             interests

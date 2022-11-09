@@ -9,7 +9,7 @@ use gpx::read;
 use gpx::Gpx;
 
 mod interests;
-use interests::InterestPoint;
+use interests::{InterestPoint, INTERESTS};
 
 mod requests;
 
@@ -342,9 +342,6 @@ fn save_gpc<W: Write>(
                 *h.entry(p.interest).or_default() += 1;
                 h
             });
-    counts.into_iter().for_each(|(interest, count)| {
-        eprintln!("{:?} appears {} times", interest, count);
-    });
 
     unique_interest_points
         .iter()
@@ -529,10 +526,39 @@ pub fn get_svg(gpcsvg: &GpcSvg) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
-pub async fn convert_gpx_strings(input_str: &str) -> GpcSvg {
+pub async fn convert_gpx_strings(
+    input_str: &str,
+    key1: &str,
+    value1: &str,
+    key2: &str,
+    value2: &str,
+    key3: &str,
+    value3: &str,
+    key4: &str,
+    value4: &str,
+) -> GpcSvg {
     let mut output: Vec<u8> = Vec::new();
     let mut svg: Vec<u8> = Vec::new();
-    convert_gpx(input_str.as_bytes(), &mut output, &mut svg, None).await;
+    let tags = [
+        (key1, value1),
+        (key2, value2),
+        (key3, value3),
+        (key4, value4),
+    ];
+    let hashed_tags = tags
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(index, (key, value))| ((key, value), index as u8))
+        .collect::<HashMap<(&str, &str), u8>>();
+    convert_gpx(
+        input_str.as_bytes(),
+        &mut output,
+        &mut svg,
+        None,
+        &hashed_tags,
+    )
+    .await;
     GpcSvg { gpc: output, svg }
 }
 
@@ -545,7 +571,7 @@ pub async fn convert_gpx_files<W: Write>(
     let reader = BufReader::new(file);
     let output_path = Path::new(&input_file).with_extension("gpc");
     let writer = BufWriter::new(File::create(output_path).unwrap());
-    convert_gpx(reader, writer, svg_writer, interests).await;
+    convert_gpx(reader, writer, svg_writer, interests, &INTERESTS).await;
 }
 
 fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
@@ -570,6 +596,7 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     output_writer: W,
     mut svg_writer: SW,
     interests: Option<Vec<InterestPoint>>,
+    hashed_tags: &HashMap<(&str, &str), u8>,
 ) {
     // load all points composing the trace and mark commented points
     // as special waypoints.
@@ -618,6 +645,7 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
         &rp,
         buckets.iter().flat_map(|b| &b.points),
         &waypoints,
+        hashed_tags,
     )
     .unwrap();
 

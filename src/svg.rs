@@ -1,8 +1,11 @@
-use std::{collections::HashSet, io::Write};
+use std::{
+    collections::{HashMap, HashSet},
+    io::Write,
+};
 
 use crate::{
     bounding_box,
-    interests::{InterestPoint, INTERESTS},
+    interests::{InterestPoint, COLORS},
     Point,
 };
 
@@ -26,6 +29,7 @@ pub fn save_svg<'a, W: Write, I: IntoIterator<Item = &'a InterestPoint>>(
     rp: &[Point],
     interest_points: I,
     waypoints: &HashSet<Point>,
+    hashed_tags: &HashMap<(&str, &str), u8>,
 ) -> std::io::Result<()> {
     let (xmin, ymin, xmax, ymax) = bounding_box(p);
 
@@ -76,7 +80,7 @@ pub fn save_svg<'a, W: Write, I: IntoIterator<Item = &'a InterestPoint>>(
     let x = 0.15 * xmin + 0.85 * xmax;
     let xt = 0.13 * xmin + 0.87 * xmax;
     let text_scale = (xmax - xmin) / 8.;
-    for (i, ((_, value), interest)) in INTERESTS.iter().enumerate() {
+    for (i, ((_, value), interest)) in hashed_tags.iter().enumerate() {
         let yp = (85. + 3. * i as f64) / 100.;
         let y = (1. - yp) * ymin + yp * ymax;
         let ypt = (86. + 3. * i as f64) / 100.;
@@ -84,9 +88,7 @@ pub fn save_svg<'a, W: Write, I: IntoIterator<Item = &'a InterestPoint>>(
         writeln!(
             &mut writer,
             "<circle cx='{}' cy='{}' fill='{}' r='0.8%'/>",
-            x,
-            y,
-            interest.color()
+            x, y, COLORS[*interest as usize]
         )?;
         writeln!(
             &mut writer,

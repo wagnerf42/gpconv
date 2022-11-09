@@ -11,7 +11,7 @@ async fn main() {
     {
         interests = std::env::args()
             .nth(2)
-            .map(|osm_file| gpconv::parse_osm_data(osm));
+            .map(|osm_file| gpconv::parse_osm_data(osm_file));
     }
     #[cfg(not(feature = "osm"))]
     {

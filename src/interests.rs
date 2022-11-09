@@ -3,85 +3,27 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Interest {
-    Bakery,
-    DrinkingWater,
-    Toilets,
-    // BikeShop,
-    // ChargingStation,
-    // Bank,
-    // Supermarket,
-    // Table,
-    // TourismOffice,
-    Artwork,
-    // Pharmacy,
-}
-
-impl Interest {
-    pub fn new(key: &str, value: &str) -> Option<Self> {
-        INTERESTS.get(&(key, value)).cloned()
-    }
-    pub fn color(&self) -> &'static str {
-        match self {
-            Interest::Bakery => "red",
-            Interest::DrinkingWater => "blue",
-            Interest::Toilets => "cyan",
-            // Interest::BikeShop => "purple",
-            // Interest::ChargingStation => "green",
-            // Interest::Bank => "black",
-            // Interest::Supermarket => "red",
-            // Interest::Table => "pink",
-            Interest::Artwork => "green",
-            // Interest::Pharmacy => "chartreuse",
-        }
-    }
-}
-
-impl Into<u8> for Interest {
-    fn into(self) -> u8 {
-        match self {
-            Interest::Bakery => 0,
-            Interest::DrinkingWater => 1,
-            Interest::Toilets => 2,
-            // Interest::BikeShop => 8,
-            // Interest::ChargingStation => 4,
-            // Interest::Bank => 5,
-            // Interest::Supermarket => 6,
-            // Interest::Table => 7,
-            Interest::Artwork => 3,
-            // Interest::Pharmacy => 9,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct InterestPoint {
     pub point: Point,
-    pub interest: Interest,
+    pub interest: u8,
 }
 
 lazy_static! {
-    pub static ref INTERESTS: HashMap<(&'static str, &'static str), Interest> = {
+    pub static ref INTERESTS: HashMap<(&'static str, &'static str), u8> = {
         [
-            (("shop", "bakery"), Interest::Bakery),
-            (("amenity", "drinking_water"), Interest::DrinkingWater),
-            (("amenity", "toilets"), Interest::Toilets),
-            // (("shop", "bicycle"), Interest::BikeShop),
-            // (("amenity", "charging_station"), Interest::ChargingStation),
-            // (("amenity", "bank"), Interest::Bank),
-            // (("shop", "supermarket"), Interest::Supermarket),
-            // (("leisure", "picnic_table"), Interest::Table),
-            // (("tourism", "information"), Interest::TourismOffice),
-            (("tourism", "artwork"), Interest::Artwork),
-            // (("amenity", "pharmacy"), Interest::Pharmacy),
+            (("shop", "bakery"), 0),
+            (("amenity", "drinking_water"), 1),
+            (("amenity", "toilets"), 2),
+            (("tourism", "artwork"), 3),
         ]
         .into_iter()
         .collect()
     };
 }
 
+pub const COLORS: [&'static str; 4] = ["red", "blue", "cyan", "green"];
 impl InterestPoint {
     pub fn color(&self) -> &'static str {
-        self.interest.color()
+        COLORS[self.interest as usize]
     }
 }
