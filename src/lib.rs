@@ -335,14 +335,6 @@ fn save_gpc<W: Write>(
         .flat_map(|p| [p.point.x, p.point.y])
         .try_for_each(|c| writer.write_all(&c.to_le_bytes()))?;
 
-    let counts: HashMap<_, usize> =
-        unique_interest_points
-            .iter()
-            .fold(HashMap::new(), |mut h, p| {
-                *h.entry(p.interest).or_default() += 1;
-                h
-            });
-
     unique_interest_points
         .iter()
         .map(|p| p.interest.into())
@@ -526,6 +518,22 @@ pub fn get_svg(gpcsvg: &GpcSvg) -> Vec<u8> {
 }
 
 #[wasm_bindgen]
+pub async fn convert_gpx_strings_no_osm(input_str: &str) -> GpcSvg {
+    let mut output: Vec<u8> = Vec::new();
+    let mut svg: Vec<u8> = Vec::new();
+    convert_gpx(
+        input_str.as_bytes(),
+        &mut output,
+        &mut svg,
+        None,
+        &INTERESTS,
+        false,
+    )
+    .await;
+    GpcSvg { gpc: output, svg }
+}
+
+#[wasm_bindgen]
 pub async fn convert_gpx_strings(
     input_str: &str,
     key1: &str,
@@ -557,6 +565,7 @@ pub async fn convert_gpx_strings(
         &mut svg,
         None,
         &hashed_tags,
+        true,
     )
     .await;
     GpcSvg { gpc: output, svg }
@@ -571,7 +580,7 @@ pub async fn convert_gpx_files<W: Write>(
     let reader = BufReader::new(file);
     let output_path = Path::new(&input_file).with_extension("gpc");
     let writer = BufWriter::new(File::create(output_path).unwrap());
-    convert_gpx(reader, writer, svg_writer, interests, &INTERESTS).await;
+    convert_gpx(reader, writer, svg_writer, interests, &INTERESTS, true).await;
 }
 
 fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
@@ -597,6 +606,7 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     mut svg_writer: SW,
     interests: Option<Vec<InterestPoint>>,
     hashed_tags: &HashMap<(&str, &str), u8>,
+    use_osm_request: bool,
 ) {
     // load all points composing the trace and mark commented points
     // as special waypoints.
@@ -606,10 +616,14 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     let mut interests = if let Some(i) = interests {
         i
     } else {
-        requests::download_openstreetmap_interests(&p)
-            .await
-            .ok()
-            .unwrap_or_default()
+        if use_osm_request {
+            requests::download_openstreetmap_interests(&p)
+                .await
+                .ok()
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
     };
 
     // detect sharp turns before path simplification to keep them
