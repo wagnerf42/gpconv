@@ -21,6 +21,20 @@ impl Interest {
     pub fn new(key: &str, value: &str) -> Option<Self> {
         INTERESTS.get(&(key, value)).cloned()
     }
+    pub fn color(&self) -> &'static str {
+        match self {
+            Interest::Bakery => "red",
+            Interest::DrinkingWater => "blue",
+            Interest::Toilets => "cyan",
+            // Interest::BikeShop => "purple",
+            // Interest::ChargingStation => "green",
+            // Interest::Bank => "black",
+            // Interest::Supermarket => "red",
+            // Interest::Table => "pink",
+            Interest::Artwork => "green",
+            // Interest::Pharmacy => "chartreuse",
+        }
+    }
 }
 
 impl Into<u8> for Interest {
@@ -68,17 +82,6 @@ lazy_static! {
 
 impl InterestPoint {
     pub fn color(&self) -> &'static str {
-        match self.interest {
-            Interest::Bakery => "red",
-            Interest::DrinkingWater => "blue",
-            Interest::Toilets => "brown",
-            // Interest::BikeShop => "purple",
-            // Interest::ChargingStation => "green",
-            // Interest::Bank => "black",
-            // Interest::Supermarket => "red",
-            // Interest::Table => "pink",
-            Interest::Artwork => "orange",
-            // Interest::Pharmacy => "chartreuse",
-        }
+        self.interest.color()
     }
 }
