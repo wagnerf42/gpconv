@@ -635,17 +635,28 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     println!("initially we had {} points", p.len());
 
     // simplify path
-    let mut rp = Vec::new();
-    let mut segment = Vec::new();
-    for point in &p {
-        segment.push(*point);
-        if waypoints.contains(point) && segment.len() >= 2 {
-            let mut s = simplify_path(&segment, 0.00015);
-            rp.append(&mut s);
-            segment = rp.pop().into_iter().collect();
-        }
-    }
-    rp.append(&mut segment);
+    let rp = if p.len() < 100 {
+        p.clone()
+    } else {
+        std::iter::successors(Some(0.00015), |precision| Some(precision / 2.))
+            .map(|precision| {
+                // simplify path
+                let mut rp = Vec::new();
+                let mut segment = Vec::new();
+                for point in &p {
+                    segment.push(*point);
+                    if waypoints.contains(point) && segment.len() >= 2 {
+                        let mut s = simplify_path(&segment, precision);
+                        rp.append(&mut s);
+                        segment = rp.pop().into_iter().collect();
+                    }
+                }
+                rp.append(&mut segment);
+                rp
+            })
+            .find(|rp| rp.len() > 80)
+            .unwrap()
+    };
     println!("we now have {} points", rp.len());
 
     // add interest points from open street map if we have any
