@@ -55,8 +55,8 @@ pub fn save_svg<'a, W: Write, I: IntoIterator<Item = &'a InterestPoint>>(
         "<g transform='translate(0, {}) scale(1,-1)'>",
         ymin + ymax
     )?;
-    save_path(&mut writer, &p, "red")?;
-    save_path(&mut writer, &rp, "black")?;
+    save_path(&mut writer, p, "red")?;
+    save_path(&mut writer, rp, "black")?;
 
     for point in interest_points {
         writeln!(

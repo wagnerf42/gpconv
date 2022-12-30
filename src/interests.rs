@@ -21,7 +21,7 @@ lazy_static! {
     };
 }
 
-pub const COLORS: [&'static str; 4] = ["red", "blue", "cyan", "green"];
+pub const COLORS: [&str; 4] = ["red", "blue", "cyan", "green"];
 impl InterestPoint {
     pub fn color(&self) -> &'static str {
         COLORS[self.interest as usize]

@@ -26,17 +26,22 @@ const UPPER_SHARP_TURN: f64 = std::f64::consts::PI * 2.0 - LOWER_SHARP_TURN;
 const KEY: u16 = 47490;
 const FILE_VERSION: u16 = 3;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Point {
     x: f64,
     y: f64,
 }
 
+impl PartialEq for Point {
+    fn eq(&self, other: &Self) -> bool {
+        self.x.to_bits() == other.x.to_bits() && self.y.to_bits() == other.y.to_bits()
+    }
+}
 impl Eq for Point {}
 impl std::hash::Hash for Point {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        unsafe { std::mem::transmute::<f64, u64>(self.x) }.hash(state);
-        unsafe { std::mem::transmute::<f64, u64>(self.y) }.hash(state);
+        self.x.to_bits().hash(state);
+        self.y.to_bits().hash(state);
     }
 }
 
@@ -60,7 +65,7 @@ impl Point {
         let x1 = w.x - v.x;
         let y1 = w.y - v.y;
         let dot = x0 * x1 + y0 * y1;
-        let t = (dot / l2).min(1.0).max(0.0);
+        let t = (dot / l2).clamp(0.0, 1.0);
 
         let proj = Point {
             x: v.x + x1 * t,
@@ -219,59 +224,55 @@ fn simplify_prog_dyn(
 
 fn rdp(points: &[Point], epsilon: f64) -> Vec<Point> {
     if points.len() <= 2 {
-        points.iter().copied().collect()
-    } else {
-        if points.first().unwrap() == points.last().unwrap() {
-            let first = points.first().unwrap();
-            let index_farthest = points
-                .iter()
-                .enumerate()
-                .skip(1)
-                .max_by(|(_, p1), (_, p2)| {
-                    first
-                        .squared_distance_between(p1)
-                        .partial_cmp(&first.squared_distance_between(p2))
-                        .unwrap()
-                })
-                .map(|(i, _)| i)
-                .unwrap();
+        points.to_vec()
+    } else if points.first().unwrap() == points.last().unwrap() {
+        let first = points.first().unwrap();
+        let index_farthest = points
+            .iter()
+            .enumerate()
+            .skip(1)
+            .max_by(|(_, p1), (_, p2)| {
+                first
+                    .squared_distance_between(p1)
+                    .partial_cmp(&first.squared_distance_between(p2))
+                    .unwrap()
+            })
+            .map(|(i, _)| i)
+            .unwrap();
 
+        let start = &points[..(index_farthest + 1)];
+        let end = &points[index_farthest..];
+        let mut res = rdp(start, epsilon);
+        res.pop();
+        res.append(&mut rdp(end, epsilon));
+        res
+    } else {
+        let (index_farthest, farthest_distance) = points
+            .iter()
+            .map(|p| p.distance_to_segment(points.first().unwrap(), points.last().unwrap()))
+            .enumerate()
+            .max_by(|(_, d1), (_, d2)| {
+                if d1.is_nan() {
+                    std::cmp::Ordering::Greater
+                } else if d2.is_nan() {
+                    std::cmp::Ordering::Less
+                } else {
+                    d1.partial_cmp(d2).unwrap()
+                }
+            })
+            .unwrap();
+        if farthest_distance <= epsilon {
+            vec![
+                points.first().copied().unwrap(),
+                points.last().copied().unwrap(),
+            ]
+        } else {
             let start = &points[..(index_farthest + 1)];
             let end = &points[index_farthest..];
             let mut res = rdp(start, epsilon);
             res.pop();
             res.append(&mut rdp(end, epsilon));
             res
-        } else {
-            let (index_farthest, farthest_distance) = points
-                .iter()
-                .map(|p| p.distance_to_segment(points.first().unwrap(), points.last().unwrap()))
-                .enumerate()
-                .max_by(|(_, d1), (_, d2)| {
-                    if d1.is_nan() {
-                        std::cmp::Ordering::Greater
-                    } else {
-                        if d2.is_nan() {
-                            std::cmp::Ordering::Less
-                        } else {
-                            d1.partial_cmp(d2).unwrap()
-                        }
-                    }
-                })
-                .unwrap();
-            if farthest_distance <= epsilon {
-                vec![
-                    points.first().copied().unwrap(),
-                    points.last().copied().unwrap(),
-                ]
-            } else {
-                let start = &points[..(index_farthest + 1)];
-                let end = &points[index_farthest..];
-                let mut res = rdp(start, epsilon);
-                res.pop();
-                res.append(&mut rdp(end, epsilon));
-                res
-            }
         }
     }
 }
@@ -337,7 +338,7 @@ fn save_gpc<W: Write>(
 
     unique_interest_points
         .iter()
-        .map(|p| p.interest.into())
+        .map(|p| p.interest)
         .try_for_each(|i: u8| writer.write_all(&i.to_le_bytes()))?;
 
     interests_on_path
@@ -355,65 +356,61 @@ fn save_gpc<W: Write>(
 
 fn optimal_simplification(points: &[Point], epsilon: f64) -> Vec<Point> {
     let mut cache = HashMap::new();
-    simplify_prog_dyn(&points, 0, points.len(), epsilon, &mut cache);
-    extract_prog_dyn_solution(&points, 0, points.len(), &cache)
+    simplify_prog_dyn(points, 0, points.len(), epsilon, &mut cache);
+    extract_prog_dyn_solution(points, 0, points.len(), &cache)
 }
 
 fn hybrid_simplification(points: &[Point], epsilon: f64) -> Vec<Point> {
     if points.len() <= 300 {
         optimal_simplification(points, epsilon)
-    } else {
-        if points.first().unwrap() == points.last().unwrap() {
-            let first = points.first().unwrap();
-            let index_farthest = points
-                .iter()
-                .enumerate()
-                .skip(1)
-                .max_by(|(_, p1), (_, p2)| {
-                    first
-                        .squared_distance_between(p1)
-                        .partial_cmp(&first.squared_distance_between(p2))
-                        .unwrap()
-                })
-                .map(|(i, _)| i)
-                .unwrap();
+    } else if points.first().unwrap() == points.last().unwrap() {
+        let first = points.first().unwrap();
+        let index_farthest = points
+            .iter()
+            .enumerate()
+            .skip(1)
+            .max_by(|(_, p1), (_, p2)| {
+                first
+                    .squared_distance_between(p1)
+                    .partial_cmp(&first.squared_distance_between(p2))
+                    .unwrap()
+            })
+            .map(|(i, _)| i)
+            .unwrap();
 
+        let start = &points[..(index_farthest + 1)];
+        let end = &points[index_farthest..];
+        let mut res = hybrid_simplification(start, epsilon);
+        res.pop();
+        res.append(&mut hybrid_simplification(end, epsilon));
+        res
+    } else {
+        let (index_farthest, farthest_distance) = points
+            .iter()
+            .map(|p| p.distance_to_segment(points.first().unwrap(), points.last().unwrap()))
+            .enumerate()
+            .max_by(|(_, d1), (_, d2)| {
+                if d1.is_nan() {
+                    std::cmp::Ordering::Greater
+                } else if d2.is_nan() {
+                    std::cmp::Ordering::Less
+                } else {
+                    d1.partial_cmp(d2).unwrap()
+                }
+            })
+            .unwrap();
+        if farthest_distance <= epsilon {
+            vec![
+                points.first().copied().unwrap(),
+                points.last().copied().unwrap(),
+            ]
+        } else {
             let start = &points[..(index_farthest + 1)];
             let end = &points[index_farthest..];
             let mut res = hybrid_simplification(start, epsilon);
             res.pop();
             res.append(&mut hybrid_simplification(end, epsilon));
             res
-        } else {
-            let (index_farthest, farthest_distance) = points
-                .iter()
-                .map(|p| p.distance_to_segment(points.first().unwrap(), points.last().unwrap()))
-                .enumerate()
-                .max_by(|(_, d1), (_, d2)| {
-                    if d1.is_nan() {
-                        std::cmp::Ordering::Greater
-                    } else {
-                        if d2.is_nan() {
-                            std::cmp::Ordering::Less
-                        } else {
-                            d1.partial_cmp(d2).unwrap()
-                        }
-                    }
-                })
-                .unwrap();
-            if farthest_distance <= epsilon {
-                vec![
-                    points.first().copied().unwrap(),
-                    points.last().copied().unwrap(),
-                ]
-            } else {
-                let start = &points[..(index_farthest + 1)];
-                let end = &points[index_farthest..];
-                let mut res = hybrid_simplification(start, epsilon);
-                res.pop();
-                res.append(&mut hybrid_simplification(end, epsilon));
-                res
-            }
         }
     }
 }
@@ -600,6 +597,11 @@ fn bounding_box(points: &[Point]) -> (f64, f64, f64, f64) {
     (xmin, ymin, xmax, ymax)
 }
 
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
+}
+
 async fn convert_gpx<R: Read, W: Write, SW: Write>(
     input_reader: R,
     output_writer: W,
@@ -615,15 +617,13 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     // if we don't have local interest points we can try a download from openstreetmap
     let mut interests = if let Some(i) = interests {
         i
+    } else if use_osm_request {
+        requests::download_openstreetmap_interests(&p)
+            .await
+            .ok()
+            .unwrap_or_default()
     } else {
-        if use_osm_request {
-            requests::download_openstreetmap_interests(&p)
-                .await
-                .ok()
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
+        Vec::new()
     };
 
     // detect sharp turns before path simplification to keep them
@@ -639,12 +639,10 @@ async fn convert_gpx<R: Read, W: Write, SW: Write>(
     let mut segment = Vec::new();
     for point in &p {
         segment.push(*point);
-        if waypoints.contains(point) {
-            if segment.len() >= 2 {
-                let mut s = simplify_path(&segment, 0.00015);
-                rp.append(&mut s);
-                segment = rp.pop().into_iter().collect();
-            }
+        if waypoints.contains(point) && segment.len() >= 2 {
+            let mut s = simplify_path(&segment, 0.00015);
+            rp.append(&mut s);
+            segment = rp.pop().into_iter().collect();
         }
     }
     rp.append(&mut segment);

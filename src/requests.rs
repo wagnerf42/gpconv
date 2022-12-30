@@ -80,12 +80,13 @@ pub fn parse_osm_xml(xml: &str) -> Vec<InterestPoint> {
                     }
                     if let Some(key) = key {
                         if let Some(value) = value {
-                            INTERESTS
-                                .get(&(key, value))
-                                .and_then(|&interest| {
+                            if let Some(interest_point) =
+                                INTERESTS.get(&(key, value)).and_then(|&interest| {
                                     current_node.map(|point| InterestPoint { point, interest })
                                 })
-                                .map(|interest_point| interest_points.push(interest_point));
+                            {
+                                interest_points.push(interest_point)
+                            }
                         }
                     }
                 }
